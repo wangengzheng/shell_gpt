@@ -1,7 +1,10 @@
 import importlib.util
 import sys
+import inspect
 from pathlib import Path
 from typing import Any, Callable, Dict, List
+
+from functools import wraps
 
 from pydantic import BaseModel
 
@@ -56,10 +59,26 @@ functions_folder.mkdir(parents=True, exist_ok=True)
 functions = [Function(str(path)) for path in functions_folder.glob("*.py")]
 
 
+
+
 def get_function(name: str) -> Callable[..., Any]:
+
     for function in functions:
         if function.name == name:
-            return function.execute
+            func = function.execute
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                sig = inspect.signature(func)
+                filtered_kwargs = {
+                    k: v
+                    for k, v in kwargs.items()
+                    if k in sig.parameters
+                }
+                
+                return func(*args, **filtered_kwargs)
+
+            return wrapper
+
     raise ValueError(f"Function {name} not found")
 
 
